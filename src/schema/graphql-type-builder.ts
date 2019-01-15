@@ -1,10 +1,10 @@
 import { TypeOptions, TypeValue } from "../decorators/types";
 import { GraphQLInputType, GraphQLOutputType } from "graphql";
 import { convertTypeIfScalar, wrapWithTypeOptions } from "../helpers/types";
-import { TypesInfo } from "./types-info";
+import { TypesInfoStorage } from "./types-info-storage";
 
 export class GraphqlTypeBuilder {
-  getSuperClassType(typeInfo: TypesInfo, objectSuperClass: any) {
+  getSuperClassType(typeInfo: TypesInfoStorage, objectSuperClass: any) {
     const superClassTypeInfo = typeInfo.inputTypesInfo.find(
       type => type.target === objectSuperClass,
     );
@@ -12,7 +12,7 @@ export class GraphqlTypeBuilder {
   }
 
   getGraphQLInputType(
-    typeInfo: TypesInfo,
+    typeInfo: TypesInfoStorage,
     typeOwnerName: string,
     type: TypeValue,
     typeOptions: TypeOptions = {},
@@ -39,7 +39,7 @@ export class GraphqlTypeBuilder {
   }
 
   getGraphQLOutputType(
-    typeInfo: TypesInfo,
+    typeInfo: TypesInfoStorage,
     typeOwnerName: string,
     type: TypeValue,
     typeOptions: TypeOptions = {},

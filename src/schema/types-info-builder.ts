@@ -19,17 +19,21 @@ import {
   InputObjectTypeInfo,
   InterfaceTypeInfo,
   ObjectTypeInfo,
-  TypesInfo,
+  TypesInfoStorage,
   UnionTypeInfo,
-} from "./types-info";
+} from "./types-info-storage";
 import { getDefaultValue } from "./getDefaultValue";
-import { UnionMetadataWithSymbol } from "../metadata/definitions";
+import { ClassMetadata, UnionMetadataWithSymbol } from "../metadata/definitions";
+import { GraphqlTypeBuilder } from "./graphql-type-builder";
 
 export class TypesInfoBuilder {
-  constructor(private handlerArgsGenerator: HandlerArgsGenerator) {}
+  constructor(
+    private graphqlTypeBuilder: GraphqlTypeBuilder,
+    private handlerArgsGenerator: HandlerArgsGenerator,
+  ) {}
 
-  buildTypesInfo(): TypesInfo {
-    const typeInfo = new TypesInfo();
+  buildTypesInfo(): TypesInfoStorage {
+    const typeInfo = new TypesInfoStorage();
     typeInfo.unionTypesInfo = this.getUnionTypesInfo(typeInfo);
     typeInfo.enumTypesInfo = this.getEnumTypesInfo();
     typeInfo.interfaceTypesInfo = this.getInterfaceTypesInfo(typeInfo);
@@ -38,13 +42,13 @@ export class TypesInfoBuilder {
     return typeInfo;
   }
 
-  private getUnionTypesInfo(typesInfo: TypesInfo): UnionTypeInfo[] {
+  private getUnionTypesInfo(typesInfo: TypesInfoStorage): UnionTypeInfo[] {
     return getMetadataStorage().unions.map<UnionTypeInfo>(unionMetadata => {
       return this.mapUnionMetadata(unionMetadata, typesInfo);
     });
   }
 
-  private mapUnionMetadata(unionMetadata: UnionMetadataWithSymbol, typesInfo: TypesInfo) {
+  private mapUnionMetadata(unionMetadata: UnionMetadataWithSymbol, typesInfo: TypesInfoStorage) {
     return {
       unionSymbol: unionMetadata.symbol,
       type: new GraphQLUnionType({
@@ -85,7 +89,7 @@ export class TypesInfoBuilder {
     });
   }
 
-  private getInterfaceTypesInfo(typesInfo: TypesInfo) {
+  private getInterfaceTypesInfo(typesInfo: TypesInfoStorage) {
     return getMetadataStorage().interfaceTypes.map<InterfaceTypeInfo>(interfaceType => {
       const interfaceSuperClass = Object.getPrototypeOf(interfaceType.target);
       const hasExtended = interfaceSuperClass.prototype !== undefined;
@@ -105,7 +109,8 @@ export class TypesInfoBuilder {
               (fieldsMap, field) => {
                 fieldsMap[field.schemaName] = {
                   description: field.description,
-                  type: typesInfo.getGraphQLOutputType(
+                  type: this.graphqlTypeBuilder.getGraphQLOutputType(
+                    typesInfo,
                     field.name,
                     field.getType(),
                     field.typeOptions,
@@ -130,7 +135,7 @@ export class TypesInfoBuilder {
     });
   }
 
-  private getObjectTypesInfo(typesInfo: TypesInfo) {
+  private getObjectTypesInfo(typesInfo: TypesInfoStorage) {
     return getMetadataStorage().objectTypes.map<ObjectTypeInfo>(objectType => {
       const objectSuperClass = Object.getPrototypeOf(objectType.target);
       const hasExtended = objectSuperClass.prototype !== undefined;
@@ -176,7 +181,8 @@ export class TypesInfoBuilder {
                       resolver.resolverClassMetadata.isAbstract === false),
                 );
                 fieldsMap[field.schemaName] = {
-                  type: typesInfo.getGraphQLOutputType(
+                  type: this.graphqlTypeBuilder.getGraphQLOutputType(
+                    typesInfo,
                     field.name,
                     field.getType(),
                     field.typeOptions,
@@ -221,10 +227,8 @@ export class TypesInfoBuilder {
     });
   }
 
-  private getInputTypesInfo(this: object, typeInfo: TypesInfo) {
+  private getInputTypesInfo(typeInfo: TypesInfoStorage) {
     return getMetadataStorage().inputTypes.map<InputObjectTypeInfo>(inputType => {
-      const objectSuperClass = Object.getPrototypeOf(inputType.target);
-
       const inputInstance = new (inputType.target as any)();
       return {
         target: inputType.target,
@@ -232,40 +236,63 @@ export class TypesInfoBuilder {
           name: inputType.name,
           description: inputType.description,
           fields: () => {
-            let fields = inputType.fields!.reduce<GraphQLInputFieldConfigMap>(
-              (fieldsMap, field) => {
-                field.typeOptions.defaultValue = getDefaultValue(
-                  inputInstance,
-                  field.typeOptions,
-                  field.name,
-                  inputType.name,
-                );
-
-                fieldsMap[field.schemaName] = {
-                  description: field.description,
-                  type: typeInfo.getGraphQLInputType(
-                    field.name,
-                    field.getType(),
-                    field.typeOptions,
-                  ),
-                  defaultValue: field.typeOptions.defaultValue,
-                };
-                return fieldsMap;
-              },
-              {},
-            );
-            // support for extending classes - get field info from prototype
-            if (objectSuperClass.prototype !== undefined) {
-              const superClass = typeInfo.getSuperClassType(objectSuperClass);
-              if (superClass) {
-                const superClassFields = getFieldMetadataFromInputType(superClass);
-                fields = Object.assign({}, superClassFields, fields);
-              }
-            }
-            return fields;
+            return this.createConfigMap(inputType, inputInstance, typeInfo);
           },
         }),
       };
     });
+  }
+
+  // support for extending classes - get field info from prototype
+  private mergeWithSuperClass(
+    typeInfo: TypesInfoStorage,
+    fields: GraphQLInputFieldConfigMap,
+    inputType: ClassMetadata,
+  ): GraphQLInputFieldConfigMap {
+    const superClass: GraphQLInputObjectType | undefined = this.getSuperClassType(
+      typeInfo,
+      inputType,
+    );
+    if (superClass) {
+      const superClassFields = getFieldMetadataFromInputType(superClass);
+      fields = Object.assign({}, superClassFields, fields);
+    }
+    return fields;
+  }
+
+  private getSuperClassType(typeInfo: TypesInfoStorage, inputType: ClassMetadata) {
+    const objectSuperClass = Object.getPrototypeOf(inputType.target);
+    if (objectSuperClass.prototype === undefined) {
+      return undefined;
+    }
+    return this.graphqlTypeBuilder.getSuperClassType(typeInfo, objectSuperClass);
+  }
+
+  private createConfigMap(
+    inputType: ClassMetadata,
+    inputInstance: any,
+    typeInfo: TypesInfoStorage,
+  ): GraphQLInputFieldConfigMap {
+    const fields = inputType.fields!.reduce<GraphQLInputFieldConfigMap>((fieldsMap, field) => {
+      field.typeOptions.defaultValue = getDefaultValue(
+        inputInstance,
+        field.typeOptions,
+        field.name,
+        inputType.name,
+      );
+
+      fieldsMap[field.schemaName] = {
+        description: field.description,
+        type: this.graphqlTypeBuilder.getGraphQLInputType(
+          typeInfo,
+          field.name,
+          field.getType(),
+          field.typeOptions,
+        ),
+        defaultValue: field.typeOptions.defaultValue,
+      };
+      return fieldsMap;
+    }, {});
+    return this.mergeWithSuperClass(typeInfo, fields, inputType);
   }
 }

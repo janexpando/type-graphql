@@ -21,22 +21,30 @@ import { BuildContext, BuildContextOptions } from "./build-context";
 import { GeneratingSchemaError, MissingSubscriptionTopicsError } from "../errors";
 import { ResolverFilterData, ResolverTopicData } from "../interfaces";
 import { TypesInfoBuilder } from "./types-info-builder";
-import { TypesInfo } from "./types-info";
+import { TypesInfoStorage } from "./types-info-storage";
 import { getDefaultValue } from "./getDefaultValue";
+import { GraphqlTypeBuilder } from "./graphql-type-builder";
 
 // tslint:disable-next-line:no-empty-interface
 export interface SchemaGeneratorOptions extends BuildContextOptions {}
 
 export class HandlerArgsGenerator {
+  constructor(private graphqTypeBuilder: GraphqlTypeBuilder) {}
+
   generateHandlerArgs(
-    typesInfo: TypesInfo,
+    typesInfo: TypesInfoStorage,
     params: ParamMetadata[],
   ): GraphQLFieldConfigArgumentMap {
     return params!.reduce<GraphQLFieldConfigArgumentMap>((args, param) => {
       if (param.kind === "arg") {
         args[param.name] = {
           description: param.description,
-          type: typesInfo.getGraphQLInputType(param.name, param.getType(), param.typeOptions),
+          type: this.graphqTypeBuilder.getGraphQLInputType(
+            typesInfo,
+            param.name,
+            param.getType(),
+            param.typeOptions,
+          ),
           defaultValue: param.typeOptions.defaultValue,
         };
       } else if (param.kind === "args") {
@@ -58,8 +66,7 @@ export class HandlerArgsGenerator {
   }
 
   private mapArgFields(
-    this: object,
-    typesInfo: TypesInfo,
+    typesInfo: TypesInfoStorage,
     argumentType: ClassMetadata,
     args: GraphQLFieldConfigArgumentMap = {},
   ) {
@@ -73,7 +80,12 @@ export class HandlerArgsGenerator {
       );
       args[field.schemaName] = {
         description: field.description,
-        type: typesInfo.getGraphQLInputType(field.name, field.getType(), field.typeOptions),
+        type: this.graphqTypeBuilder.getGraphQLInputType(
+          typesInfo,
+          field.name,
+          field.getType(),
+          field.typeOptions,
+        ),
         defaultValue: field.typeOptions.defaultValue,
       };
     });
@@ -81,9 +93,13 @@ export class HandlerArgsGenerator {
 }
 
 export abstract class SchemaGenerator {
-  private static typesInfo: TypesInfo;
+  private static typesInfo: TypesInfoStorage;
 
-  private static handlerArgsGenerator: HandlerArgsGenerator = new HandlerArgsGenerator();
+  private static graphqlTypeBuilder: GraphqlTypeBuilder = new GraphqlTypeBuilder();
+
+  private static handlerArgsGenerator: HandlerArgsGenerator = new HandlerArgsGenerator(
+    new GraphqlTypeBuilder(),
+  );
 
   static async generateFromMetadata(options: SchemaGeneratorOptions): Promise<GraphQLSchema> {
     const schema = this.generateFromMetadataSync(options);
@@ -120,7 +136,7 @@ export abstract class SchemaGenerator {
   }
 
   private static buildTypesInfo() {
-    const builder = new TypesInfoBuilder(this.handlerArgsGenerator);
+    const builder = new TypesInfoBuilder(this.graphqlTypeBuilder, this.handlerArgsGenerator);
     this.typesInfo = builder.buildTypesInfo();
   }
 
@@ -169,7 +185,8 @@ export abstract class SchemaGenerator {
         return fields;
       }
       fields[handler.schemaName] = {
-        type: this.typesInfo.getGraphQLOutputType(
+        type: this.graphqlTypeBuilder.getGraphQLOutputType(
+          this.typesInfo,
           handler.methodName,
           handler.getReturnType(),
           handler.returnTypeOptions,

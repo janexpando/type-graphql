@@ -328,9 +328,7 @@ export class SuperClassSearcher {
     if (objectSuperClass === undefined) {
       return undefined;
     }
-    const superClassTypeInfo = typeInfo.objectTypesInfo.find(
-      type => type.target === objectSuperClass,
-    );
+    const superClassTypeInfo = typeInfo.objectTypesInfo.findByConstructor(objectSuperClass);
     return superClassTypeInfo ? superClassTypeInfo.type : undefined;
   }
 

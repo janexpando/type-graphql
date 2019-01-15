@@ -178,14 +178,20 @@ describe("IOC container", () => {
 
     expect(called).toEqual(true);
   });
-  it.skip("should be able to work with instances", async () => {
+  it.skip("should use only resolvers provided", async () => {
     @Resolver()
     class SampleResolver {
-      constructor(private url: string) {}
-
       @Query()
       getUrl(): string {
-        return this.url || "";
+        return "SUCCESS";
+      }
+    }
+
+    @Resolver()
+    class OtherResolver {
+      @Query()
+      getUrl(): string {
+        return "FAIL";
       }
     }
 
@@ -195,13 +201,12 @@ describe("IOC container", () => {
       }
     `;
 
-    const resolverInstance = new SampleResolver("www.github.com");
     const schema = await buildSchema({
-      resolvers: [resolverInstance],
+      resolvers: [SampleResolver],
     });
 
     const result = await graphql(schema, query);
     expect(result.errors).toBeFalsy();
-    expect(result.data && result.data.getUrl).toBe("www.github.com");
+    expect(result.data && result.data.getUrl).toBe("SUCCESS");
   });
 });

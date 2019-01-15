@@ -6,6 +6,17 @@ import {
   GraphQLUnionType,
 } from "graphql";
 
+export type SupportedGraphQLType =
+  | GraphQLObjectType
+  | GraphQLInputObjectType
+  | GraphQLInterfaceType
+  | GraphQLEnumType
+  | GraphQLUnionType;
+
+export interface TypeInfo<T extends SupportedGraphQLType> {
+  type: T;
+}
+
 export interface ObjectTypeInfo {
   target: Function;
   type: GraphQLObjectType;
@@ -32,11 +43,26 @@ export interface UnionTypeInfo {
 }
 
 export class TypesInfoStorage {
-  constructor(
-    public objectTypesInfo: ObjectTypeInfo[] = [],
-    public inputTypesInfo: InputObjectTypeInfo[] = [],
-    public interfaceTypesInfo: InterfaceTypeInfo[] = [],
-    public enumTypesInfo: EnumTypeInfo[] = [],
-    public unionTypesInfo: UnionTypeInfo[] = [],
-  ) {}
+  objectTypesInfo: ObjectTypeInfoStorage = new ObjectTypeInfoStorage();
+  inputTypesInfo: InputObjectTypeInfo[] = [];
+  interfaceTypesInfo: InterfaceTypeInfo[] = [];
+  enumTypesInfo: EnumTypeInfo[] = [];
+  unionTypesInfo: UnionTypeInfo[] = [];
+}
+
+export interface Storage<T> {
+  findByConstructor(constructor: any): T | undefined;
+  getTypes(): SupportedGraphQLType[];
+}
+
+export class ObjectTypeInfoStorage implements Storage<ObjectTypeInfo> {
+  private items: ObjectTypeInfo[] = [];
+
+  findByConstructor(constructor: any): ObjectTypeInfo | undefined {
+    return this.items.find(type => type.target === constructor);
+  }
+
+  getTypes(): GraphQLObjectType[] {
+    return this.items.map(it => it.type);
+  }
 }

@@ -40,7 +40,7 @@ export class GraphqlTypeBuilder {
     let gqlType: GraphQLOutputType | undefined;
     gqlType = convertTypeIfScalar(type);
     if (!gqlType) {
-      const objectType = typeInfo.objectTypesInfo.find(it => it.target === (type as Function));
+      const objectType = typeInfo.objectTypesInfo.findByConstructor(type);
       if (objectType) {
         gqlType = objectType.type;
       }

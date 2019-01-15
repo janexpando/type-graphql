@@ -4,13 +4,6 @@ import { convertTypeIfScalar, wrapWithTypeOptions } from "../helpers/types";
 import { TypesInfoStorage } from "./types-info-storage";
 
 export class GraphqlTypeBuilder {
-  getSuperClassType(typeInfo: TypesInfoStorage, objectSuperClass: any) {
-    const superClassTypeInfo = typeInfo.inputTypesInfo.find(
-      type => type.target === objectSuperClass,
-    );
-    return superClassTypeInfo ? superClassTypeInfo.type : undefined;
-  }
-
   getGraphQLInputType(
     typeInfo: TypesInfoStorage,
     typeOwnerName: string,

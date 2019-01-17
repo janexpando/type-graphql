@@ -43,7 +43,7 @@ export class GraphqlTypeBuilder {
     type: TypeValue,
     typeOptions: TypeOptions = {},
   ): GraphQLType {
-    let gqlType: GraphQLOutputType | undefined;
+    let gqlType: GraphQLType | undefined;
     gqlType = convertTypeIfScalar(type);
 
     if (!gqlType) {

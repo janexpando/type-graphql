@@ -51,7 +51,10 @@ export class TypesInfoStorage {
 }
 export type Index = Function | object | symbol;
 
-export abstract class Storage<GT extends SupportedGraphQLType, T extends TypeInfo<GT>> {
+export abstract class Storage<
+  GT extends SupportedGraphQLType = SupportedGraphQLType,
+  T extends TypeInfo<GT> = TypeInfo<GT>
+> {
   protected items: Map<Index, T>;
 
   constructor(items: T[] = []) {

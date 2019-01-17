@@ -1,7 +1,7 @@
 import { TypeOptions, TypeValue } from "../decorators/types";
-import { GraphQLInputType, GraphQLOutputType } from "graphql";
+import { GraphQLInputType, GraphQLOutputType, GraphQLType } from "graphql";
 import { convertTypeIfScalar, wrapWithTypeOptions } from "../helpers/types";
-import { TypesInfoStorage } from "./types-info-storage";
+import { Storage, TypesInfoStorage } from "./types-info-storage";
 
 export class GraphqlTypeBuilder {
   getGraphQLInputType(
@@ -10,25 +10,12 @@ export class GraphqlTypeBuilder {
     type: TypeValue,
     typeOptions: TypeOptions = {},
   ): GraphQLInputType {
-    let gqlType: GraphQLInputType | undefined;
-    gqlType = convertTypeIfScalar(type);
-    if (!gqlType) {
-      const inputType = typeInfo.inputTypesInfo.find(it => it.target === (type as Function));
-      if (inputType) {
-        gqlType = inputType.type;
-      }
-    }
-    if (!gqlType) {
-      const enumType = typeInfo.enumTypesInfo.find(it => it.enumObj === (type as Function));
-      if (enumType) {
-        gqlType = enumType.type;
-      }
-    }
-    if (!gqlType) {
-      throw new Error(`Cannot determine GraphQL input type for ${typeOwnerName}`!);
-    }
-
-    return wrapWithTypeOptions(typeOwnerName, gqlType, typeOptions);
+    return this.getGraphqlType(
+      [typeInfo.inputTypesInfo, typeInfo.enumTypesInfo],
+      typeOwnerName,
+      type,
+      typeOptions,
+    ) as GraphQLInputType;
   }
 
   getGraphQLOutputType(
@@ -37,36 +24,40 @@ export class GraphqlTypeBuilder {
     type: TypeValue,
     typeOptions: TypeOptions = {},
   ): GraphQLOutputType {
+    return this.getGraphqlType(
+      [
+        typeInfo.objectTypesInfo,
+        typeInfo.interfaceTypesInfo,
+        typeInfo.enumTypesInfo,
+        typeInfo.unionTypesInfo,
+      ],
+      typeOwnerName,
+      type,
+      typeOptions,
+    ) as GraphQLOutputType;
+  }
+
+  private getGraphqlType(
+    storages: Storage[],
+    typeOwnerName: string,
+    type: TypeValue,
+    typeOptions: TypeOptions = {},
+  ): GraphQLType {
     let gqlType: GraphQLOutputType | undefined;
     gqlType = convertTypeIfScalar(type);
+
     if (!gqlType) {
-      const objectType = typeInfo.objectTypesInfo.findByConstructor(type);
-      if (objectType) {
-        gqlType = objectType.type;
+      for (const storage of storages) {
+        const found = storage.findByConstructor(type);
+        if (found) {
+          gqlType = found.type;
+          break;
+        }
       }
     }
+
     if (!gqlType) {
-      const interfaceType = typeInfo.interfaceTypesInfo.find(
-        it => it.target === (type as Function),
-      );
-      if (interfaceType) {
-        gqlType = interfaceType.type;
-      }
-    }
-    if (!gqlType) {
-      const enumType = typeInfo.enumTypesInfo.find(it => it.enumObj === (type as Function));
-      if (enumType) {
-        gqlType = enumType.type;
-      }
-    }
-    if (!gqlType) {
-      const unionType = typeInfo.unionTypesInfo.find(it => it.unionSymbol === (type as symbol));
-      if (unionType) {
-        gqlType = unionType.type;
-      }
-    }
-    if (!gqlType) {
-      throw new Error(`Cannot determine GraphQL output type for ${typeOwnerName}`!);
+      throw new Error(`Cannot determine GraphQL type for ${typeOwnerName}`!);
     }
 
     return wrapWithTypeOptions(typeOwnerName, gqlType, typeOptions);

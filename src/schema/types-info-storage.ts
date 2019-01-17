@@ -44,25 +44,79 @@ export interface UnionTypeInfo {
 
 export class TypesInfoStorage {
   objectTypesInfo: ObjectTypeInfoStorage = new ObjectTypeInfoStorage();
-  inputTypesInfo: InputObjectTypeInfo[] = [];
-  interfaceTypesInfo: InterfaceTypeInfo[] = [];
-  enumTypesInfo: EnumTypeInfo[] = [];
-  unionTypesInfo: UnionTypeInfo[] = [];
+  inputTypesInfo: InputObjectTypeInfoStorage = new InputObjectTypeInfoStorage();
+  interfaceTypesInfo: InterfaceTypeInfoStorage = new InterfaceTypeInfoStorage();
+  enumTypesInfo: EnumTypeInfoStorage = new EnumTypeInfoStorage();
+  unionTypesInfo: UnionTypeInfoStorage = new UnionTypeInfoStorage();
 }
+export type Index = Function | object | symbol;
 
-export interface Storage<T> {
-  findByConstructor(constructor: any): T | undefined;
-  getTypes(): SupportedGraphQLType[];
-}
+export abstract class Storage<GT extends SupportedGraphQLType, T extends TypeInfo<GT>> {
+  protected items: Map<Index, T>;
 
-export class ObjectTypeInfoStorage implements Storage<ObjectTypeInfo> {
-  private items: ObjectTypeInfo[] = [];
-
-  findByConstructor(constructor: any): ObjectTypeInfo | undefined {
-    return this.items.find(type => type.target === constructor);
+  constructor(items: T[] = []) {
+    this.items = new Map();
+    for (const item of items) {
+      this.set(item);
+    }
   }
 
-  getTypes(): GraphQLObjectType[] {
-    return this.items.map(it => it.type);
+  findByConstructor(constructor: Index): T | undefined {
+    return this.items.get(constructor);
+  }
+
+  getTypes(): GT[] {
+    const result: GT[] = [];
+    for (const item of this.items.values()) {
+      result.push(item.type);
+    }
+    return result;
+  }
+
+  set(typeInfo: T) {
+    this.items.set(this.getIndex(typeInfo), typeInfo);
+  }
+
+  protected getIndex(item: T): Index {
+    throw new Error("Not implemented");
+  }
+}
+
+type TargetIndexed = ObjectTypeInfo | InputObjectTypeInfo | InterfaceTypeInfo;
+type GTargetIndexed = GraphQLObjectType | GraphQLInputObjectType | GraphQLInterfaceType;
+
+export abstract class TargetIndexedStorage<
+  GT extends GTargetIndexed,
+  T extends TargetIndexed
+> extends Storage<GT, any> {
+  protected getIndex(item: T): Index {
+    return item.target;
+  }
+}
+
+export class ObjectTypeInfoStorage extends TargetIndexedStorage<
+  GraphQLObjectType,
+  ObjectTypeInfo
+> {}
+
+export class InputObjectTypeInfoStorage extends TargetIndexedStorage<
+  GraphQLInputObjectType,
+  InputObjectTypeInfo
+> {}
+
+export class InterfaceTypeInfoStorage extends TargetIndexedStorage<
+  GraphQLInterfaceType,
+  InterfaceTypeInfo
+> {}
+
+export class EnumTypeInfoStorage extends Storage<GraphQLEnumType, EnumTypeInfo> {
+  protected getIndex(item: EnumTypeInfo): Index {
+    return item.enumObj;
+  }
+}
+
+export class UnionTypeInfoStorage extends Storage<GraphQLUnionType, UnionTypeInfo> {
+  protected getIndex(item: UnionTypeInfo): Index {
+    return item.unionSymbol;
   }
 }

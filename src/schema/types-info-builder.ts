@@ -16,11 +16,16 @@ import { createAdvancedFieldResolver, createSimpleFieldResolver } from "../resol
 import { HandlerArgsGenerator } from "./schema-generator";
 import {
   EnumTypeInfo,
+  EnumTypeInfoStorage,
   InputObjectTypeInfo,
+  InputObjectTypeInfoStorage,
   InterfaceTypeInfo,
+  InterfaceTypeInfoStorage,
   ObjectTypeInfo,
+  ObjectTypeInfoStorage,
   TypesInfoStorage,
   UnionTypeInfo,
+  UnionTypeInfoStorage,
 } from "./types-info-storage";
 import { getDefaultValue } from "./getDefaultValue";
 import { ClassMetadata, UnionMetadataWithSymbol } from "../metadata/definitions";
@@ -51,10 +56,12 @@ export class TypesInfoBuilder {
     return typeInfo;
   }
 
-  private getUnionTypesInfo(typesInfo: TypesInfoStorage): UnionTypeInfo[] {
-    return getMetadataStorage().unions.map<UnionTypeInfo>(unionMetadata => {
-      return this.mapUnionMetadata(unionMetadata, typesInfo);
+  private getUnionTypesInfo(typesInfo: TypesInfoStorage): UnionTypeInfoStorage {
+    const storage = new UnionTypeInfoStorage();
+    getMetadataStorage().unions.forEach(unionMetadata => {
+      storage.set(this.mapUnionMetadata(unionMetadata, typesInfo));
     });
+    return storage;
   }
 
   private mapUnionMetadata(unionMetadata: UnionMetadataWithSymbol, typesInfo: TypesInfoStorage) {
@@ -65,24 +72,24 @@ export class TypesInfoBuilder {
         description: unionMetadata.description,
         types: () =>
           unionMetadata.types.map(
-            objectType => typesInfo.objectTypesInfo.find(type => type.target === objectType)!.type,
+            objectType => typesInfo.objectTypesInfo.findByConstructor(objectType)!.type,
           ),
         resolveType: instance => {
           const instanceTarget = unionMetadata.types.find(type => instance instanceof type);
           if (!instanceTarget) {
             throw new UnionResolveTypeError(unionMetadata);
           }
-          // TODO: refactor to map for quicker access
-          return typesInfo.objectTypesInfo.find(type => type.target === instanceTarget)!.type;
+          return typesInfo.objectTypesInfo.findByConstructor(instanceTarget)!.type;
         },
       }),
     };
   }
 
-  private getEnumTypesInfo() {
-    return getMetadataStorage().enums.map<EnumTypeInfo>(enumMetadata => {
+  private getEnumTypesInfo(): EnumTypeInfoStorage {
+    const storage = new EnumTypeInfoStorage();
+    getMetadataStorage().enums.forEach(enumMetadata => {
       const enumMap = getEnumValuesMap(enumMetadata.enumObj);
-      return {
+      const info: EnumTypeInfo = {
         enumObj: enumMetadata.enumObj,
         type: new GraphQLEnumType({
           name: enumMetadata.name,
@@ -95,20 +102,24 @@ export class TypesInfoBuilder {
           }, {}),
         }),
       };
+      storage.set(info);
     });
+    return storage;
   }
 
-  private getInterfaceTypesInfo(typesInfo: TypesInfoStorage) {
-    return getMetadataStorage().interfaceTypes.map<InterfaceTypeInfo>(interfaceType => {
+  private getInterfaceTypesInfo(typesInfo: TypesInfoStorage): InterfaceTypeInfoStorage {
+    const storage = new InterfaceTypeInfoStorage();
+
+    getMetadataStorage().interfaceTypes.forEach(interfaceType => {
       const interfaceSuperClass = Object.getPrototypeOf(interfaceType.target);
       const hasExtended = interfaceSuperClass.prototype !== undefined;
       const getSuperClassType = () => {
-        const superClassTypeInfo = typesInfo.interfaceTypesInfo.find(
-          type => type.target === interfaceSuperClass,
+        const superClassTypeInfo = typesInfo.interfaceTypesInfo.findByConstructor(
+          interfaceSuperClass,
         );
         return superClassTypeInfo ? superClassTypeInfo.type : undefined;
       };
-      return {
+      const info: InterfaceTypeInfo = {
         target: interfaceType.target,
         type: new GraphQLInterfaceType({
           name: interfaceType.name,
@@ -141,15 +152,18 @@ export class TypesInfoBuilder {
           },
         }),
       };
+      storage.set(info);
     });
+    return storage;
   }
 
-  private getObjectTypesInfo(typesInfo: TypesInfoStorage) {
-    return getMetadataStorage().objectTypes.map<ObjectTypeInfo>(objectType => {
+  private getObjectTypesInfo(typesInfo: TypesInfoStorage): ObjectTypeInfoStorage {
+    const storage = new ObjectTypeInfoStorage();
+    getMetadataStorage().objectTypes.forEach(objectType => {
       const objectSuperClass = Object.getPrototypeOf(objectType.target);
       const hasExtended = objectSuperClass.prototype !== undefined;
       const interfaceClasses = objectType.interfaceClasses || [];
-      return {
+      const info: ObjectTypeInfo = {
         target: objectType.target,
         type: new GraphQLObjectType({
           name: objectType.name,
@@ -161,7 +175,7 @@ export class TypesInfoBuilder {
           interfaces: () => {
             let interfaces = interfaceClasses.map<GraphQLInterfaceType>(
               interfaceClass =>
-                typesInfo.interfaceTypesInfo.find(info => info.target === interfaceClass)!.type,
+                typesInfo.interfaceTypesInfo.findByConstructor(interfaceClass)!.type,
             );
             // copy interfaces from super class
             if (hasExtended) {
@@ -195,8 +209,8 @@ export class TypesInfoBuilder {
               const interfacesFields = objectType.interfaceClasses.reduce<
                 GraphQLFieldConfigMap<any, any>
               >((fieldsMap, interfaceClass) => {
-                const interfaceType = typesInfo.interfaceTypesInfo.find(
-                  type => type.target === interfaceClass,
+                const interfaceType = typesInfo.interfaceTypesInfo.findByConstructor(
+                  interfaceClass,
                 )!.type;
                 return Object.assign(fieldsMap, getFieldMetadataFromObjectType(interfaceType));
               }, {});
@@ -206,7 +220,9 @@ export class TypesInfoBuilder {
           },
         }),
       };
+      storage.set(info);
     });
+    return storage;
   }
 
   private createObjectTypesInfoConfigMap(objectType: ClassMetadata, typesInfo: TypesInfoStorage) {
@@ -244,10 +260,12 @@ export class InputTypesInfoGenerator {
     private superClassSearcher: SuperClassSearcher,
   ) {}
 
-  getInputTypesInfo(typeInfo: TypesInfoStorage) {
-    return getMetadataStorage().inputTypes.map<InputObjectTypeInfo>(inputType => {
+  getInputTypesInfo(typeInfo: TypesInfoStorage): InputObjectTypeInfoStorage {
+    const storage = new InputObjectTypeInfoStorage();
+
+    getMetadataStorage().inputTypes.forEach(inputType => {
       const inputInstance = new (inputType.target as any)();
-      return {
+      const info: InputObjectTypeInfo = {
         target: inputType.target,
         type: new GraphQLInputObjectType({
           name: inputType.name,
@@ -257,7 +275,9 @@ export class InputTypesInfoGenerator {
           },
         }),
       };
+      storage.set(info);
     });
+    return storage;
   }
 
   // support for extending classes - get field info from prototype
@@ -314,9 +334,7 @@ export class SuperClassSearcher {
     if (objectSuperClass === undefined) {
       return undefined;
     }
-    const superClassTypeInfo = typeInfo.inputTypesInfo.find(
-      type => type.target === objectSuperClass,
-    );
+    const superClassTypeInfo = typeInfo.inputTypesInfo.findByConstructor(objectSuperClass);
     return superClassTypeInfo ? superClassTypeInfo.type : undefined;
   }
 

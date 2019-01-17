@@ -171,8 +171,8 @@ export abstract class SchemaGenerator {
     // TODO: investigate the need of directly providing this types
     // maybe GraphQL can use only the types provided indirectly
     return [
-      ...this.typesInfo.objectTypesInfo.map(it => it.type),
-      ...this.typesInfo.interfaceTypesInfo.map(it => it.type),
+      ...this.typesInfo.objectTypesInfo.getTypes(),
+      ...this.typesInfo.interfaceTypesInfo.getTypes(),
     ];
   }
 

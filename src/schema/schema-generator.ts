@@ -31,16 +31,12 @@ export interface SchemaGeneratorOptions extends BuildContextOptions {}
 export class HandlerArgsGenerator {
   constructor(private graphqTypeBuilder: GraphqlTypeBuilder) {}
 
-  generateHandlerArgs(
-    typesInfo: TypesInfoStorage,
-    params: ParamMetadata[],
-  ): GraphQLFieldConfigArgumentMap {
+  generateHandlerArgs(params: ParamMetadata[]): GraphQLFieldConfigArgumentMap {
     return params!.reduce<GraphQLFieldConfigArgumentMap>((args, param) => {
       if (param.kind === "arg") {
         args[param.name] = {
           description: param.description,
           type: this.graphqTypeBuilder.getGraphQLInputType(
-            typesInfo,
             param.name,
             param.getType(),
             param.typeOptions,
@@ -56,20 +52,16 @@ export class HandlerArgsGenerator {
           const superArgumentType = getMetadataStorage().argumentTypes.find(
             it => it.target === superClass,
           )!;
-          this.mapArgFields(typesInfo, superArgumentType, args);
+          this.mapArgFields(superArgumentType, args);
           superClass = Object.getPrototypeOf(superClass);
         }
-        this.mapArgFields(typesInfo, argumentType, args);
+        this.mapArgFields(argumentType, args);
       }
       return args;
     }, {});
   }
 
-  private mapArgFields(
-    typesInfo: TypesInfoStorage,
-    argumentType: ClassMetadata,
-    args: GraphQLFieldConfigArgumentMap = {},
-  ) {
+  private mapArgFields(argumentType: ClassMetadata, args: GraphQLFieldConfigArgumentMap = {}) {
     const argumentInstance = new (argumentType.target as any)();
     argumentType.fields!.forEach(field => {
       field.typeOptions.defaultValue = getDefaultValue(
@@ -81,7 +73,6 @@ export class HandlerArgsGenerator {
       args[field.schemaName] = {
         description: field.description,
         type: this.graphqTypeBuilder.getGraphQLInputType(
-          typesInfo,
           field.name,
           field.getType(),
           field.typeOptions,
@@ -92,91 +83,15 @@ export class HandlerArgsGenerator {
   }
 }
 
-export abstract class SchemaGenerator {
-  private static typesInfo: TypesInfoStorage;
+export class HandlerFieldsGenerator {
+  constructor(
+    private typesInfo: TypesInfoStorage,
+    private graphqlTypeBuilder: GraphqlTypeBuilder,
+    private handlerArgsGenerator: HandlerArgsGenerator,
+    private buildContext: BuildContext,
+  ) {}
 
-  private static graphqlTypeBuilder: GraphqlTypeBuilder = new GraphqlTypeBuilder();
-
-  private static handlerArgsGenerator: HandlerArgsGenerator = new HandlerArgsGenerator(
-    new GraphqlTypeBuilder(),
-  );
-
-  static async generateFromMetadata(options: SchemaGeneratorOptions): Promise<GraphQLSchema> {
-    const schema = this.generateFromMetadataSync(options);
-    const { errors } = await graphql(schema, getIntrospectionQuery());
-    if (errors) {
-      throw new GeneratingSchemaError(errors);
-    }
-    return schema;
-  }
-
-  static generateFromMetadataSync(options: SchemaGeneratorOptions): GraphQLSchema {
-    this.checkForErrors(options);
-    BuildContext.create(options);
-    getMetadataStorage().build();
-    this.buildTypesInfo();
-
-    const schema = new GraphQLSchema({
-      query: this.buildRootQueryType(),
-      mutation: this.buildRootMutationType(),
-      subscription: this.buildRootSubscriptionType(),
-      types: this.buildOtherTypes(),
-    });
-
-    BuildContext.reset();
-    return schema;
-  }
-
-  private static checkForErrors(options: SchemaGeneratorOptions) {
-    if (getMetadataStorage().authorizedFields.length !== 0 && options.authChecker === undefined) {
-      throw new Error(
-        "You need to provide `authChecker` function for `@Authorized` decorator usage!",
-      );
-    }
-  }
-
-  private static buildTypesInfo() {
-    const builder = new TypesInfoBuilder(this.graphqlTypeBuilder, this.handlerArgsGenerator);
-    this.typesInfo = builder.buildTypesInfo();
-  }
-
-  private static buildRootQueryType(): GraphQLObjectType {
-    return new GraphQLObjectType({
-      name: "Query",
-      fields: this.generateHandlerFields(getMetadataStorage().queries),
-    });
-  }
-
-  private static buildRootMutationType(): GraphQLObjectType | undefined {
-    if (getMetadataStorage().mutations.length === 0) {
-      return;
-    }
-    return new GraphQLObjectType({
-      name: "Mutation",
-      fields: this.generateHandlerFields(getMetadataStorage().mutations),
-    });
-  }
-
-  private static buildRootSubscriptionType(): GraphQLObjectType | undefined {
-    if (getMetadataStorage().subscriptions.length === 0) {
-      return;
-    }
-    return new GraphQLObjectType({
-      name: "Subscription",
-      fields: this.generateSubscriptionsFields(getMetadataStorage().subscriptions),
-    });
-  }
-
-  private static buildOtherTypes(): GraphQLNamedType[] {
-    // TODO: investigate the need of directly providing this types
-    // maybe GraphQL can use only the types provided indirectly
-    return [
-      ...this.typesInfo.objectTypesInfo.getTypes(),
-      ...this.typesInfo.interfaceTypesInfo.getTypes(),
-    ];
-  }
-
-  private static generateHandlerFields<T = any, U = any>(
+  generateHandlerFields<T = any, U = any>(
     handlers: ResolverMetadata[],
   ): GraphQLFieldConfigMap<T, U> {
     return handlers.reduce<GraphQLFieldConfigMap<T, U>>((fields, handler) => {
@@ -186,13 +101,12 @@ export abstract class SchemaGenerator {
       }
       fields[handler.schemaName] = {
         type: this.graphqlTypeBuilder.getGraphQLOutputType(
-          this.typesInfo,
           handler.methodName,
           handler.getReturnType(),
           handler.returnTypeOptions,
         ),
-        args: this.handlerArgsGenerator.generateHandlerArgs(this.typesInfo, handler.params!),
-        resolve: createHandlerResolver(handler),
+        args: this.handlerArgsGenerator.generateHandlerArgs(handler.params!),
+        resolve: createHandlerResolver(this.buildContext, handler),
         description: handler.description,
         deprecationReason: handler.deprecationReason,
         complexity: handler.complexity,
@@ -200,12 +114,99 @@ export abstract class SchemaGenerator {
       return fields;
     }, {});
   }
+}
 
-  private static generateSubscriptionsFields<T = any, U = any>(
+export class SchemaGenerator {
+  private typesInfo: TypesInfoStorage;
+  private graphqlTypeBuilder: GraphqlTypeBuilder;
+  private handlerArgsGenerator: HandlerArgsGenerator;
+  private handlerFieldsGenerator: HandlerFieldsGenerator;
+
+  constructor(private buildContext: BuildContext) {
+    this.typesInfo = new TypesInfoStorage();
+    this.graphqlTypeBuilder = new GraphqlTypeBuilder(this.typesInfo, this.buildContext);
+    this.handlerArgsGenerator = new HandlerArgsGenerator(this.graphqlTypeBuilder);
+    this.handlerFieldsGenerator = new HandlerFieldsGenerator(
+      this.typesInfo,
+      this.graphqlTypeBuilder,
+      this.handlerArgsGenerator,
+      this.buildContext,
+    );
+  }
+
+  async generateFromMetadata(): Promise<GraphQLSchema> {
+    const schema = this.generateFromMetadataSync();
+    const { errors } = await graphql(schema, getIntrospectionQuery());
+    if (errors) {
+      throw new GeneratingSchemaError(errors);
+    }
+    return schema;
+  }
+
+  generateFromMetadataSync(): GraphQLSchema {
+    getMetadataStorage().build();
+    this.buildTypesInfo();
+
+    const schema = new GraphQLSchema({
+      query: this.buildRootQueryType(),
+      mutation: this.buildRootMutationType(),
+      subscription: this.buildRootSubscriptionType(),
+      types: this.buildOtherTypes(),
+    });
+    return schema;
+  }
+
+  private buildTypesInfo() {
+    const builder = new TypesInfoBuilder(
+      this.typesInfo,
+      this.graphqlTypeBuilder,
+      this.handlerArgsGenerator,
+      this.buildContext,
+    );
+    builder.buildTypesInfo();
+  }
+
+  private buildRootQueryType(): GraphQLObjectType {
+    return new GraphQLObjectType({
+      name: "Query",
+      fields: this.handlerFieldsGenerator.generateHandlerFields(getMetadataStorage().queries),
+    });
+  }
+
+  private buildRootMutationType(): GraphQLObjectType | undefined {
+    if (getMetadataStorage().mutations.length === 0) {
+      return;
+    }
+    return new GraphQLObjectType({
+      name: "Mutation",
+      fields: this.handlerFieldsGenerator.generateHandlerFields(getMetadataStorage().mutations),
+    });
+  }
+
+  private buildRootSubscriptionType(): GraphQLObjectType | undefined {
+    if (getMetadataStorage().subscriptions.length === 0) {
+      return;
+    }
+    return new GraphQLObjectType({
+      name: "Subscription",
+      fields: this.generateSubscriptionsFields(getMetadataStorage().subscriptions),
+    });
+  }
+
+  private buildOtherTypes(): GraphQLNamedType[] {
+    // TODO: investigate the need of directly providing this types
+    // maybe GraphQL can use only the types provided indirectly
+    return [
+      ...this.typesInfo.objectTypesInfo.getTypes(),
+      ...this.typesInfo.interfaceTypesInfo.getTypes(),
+    ];
+  }
+
+  private generateSubscriptionsFields<T = any, U = any>(
     subscriptionsHandlers: SubscriptionResolverMetadata[],
   ): GraphQLFieldConfigMap<T, U> {
-    const { pubSub } = BuildContext;
-    const basicFields = this.generateHandlerFields(subscriptionsHandlers);
+    const { pubSub } = this.buildContext;
+    const basicFields = this.handlerFieldsGenerator.generateHandlerFields(subscriptionsHandlers);
     return subscriptionsHandlers.reduce<GraphQLFieldConfigMap<T, U>>((fields, handler) => {
       // omit emitting abstract resolver fields
       if (handler.resolverClassMetadata && handler.resolverClassMetadata.isAbstract) {

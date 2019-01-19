@@ -32,7 +32,6 @@ export class InterfaceTypesInfoBuilder {
         fieldsMap[field.schemaName] = {
           description: field.description,
           type: this.graphqlTypeBuilder.getGraphQLOutputType(
-            this.typeInfo,
             field.name,
             field.getType(),
             field.typeOptions,

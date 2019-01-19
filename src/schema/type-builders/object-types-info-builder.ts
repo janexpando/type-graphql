@@ -7,6 +7,7 @@ import { getFieldMetadataFromObjectType } from "../utils";
 import { getMetadataStorage } from "../../metadata/getMetadataStorage";
 import { createAdvancedFieldResolver, createSimpleFieldResolver } from "../../resolvers/create";
 import { SuperClassSearcher } from "../super-class-searcher";
+import { BuildContext } from "../build-context";
 
 export class ObjectTypesInfoBuilder {
   constructor(
@@ -14,6 +15,7 @@ export class ObjectTypesInfoBuilder {
     private superClassSearcher: SuperClassSearcher,
     private graphqlTypeBuilder: GraphqlTypeBuilder,
     private handlerArgsGenerator: HandlerArgsGenerator,
+    private buildContext: BuildContext,
   ) {}
 
   createObjectTypeInfo(objectType: ClassMetadata): ObjectTypeInfo {
@@ -31,7 +33,7 @@ export class ObjectTypesInfoBuilder {
             : undefined,
         interfaces: () => this.createInterfaces(objectType),
         fields: () => {
-          let fields = this.createObjectTypesInfoConfigMap(objectType, this.typesInfo);
+          let fields = this.createObjectTypesInfoConfigMap(objectType);
           // support for extending classes - get field info from prototype
           if (hasExtended) {
             const superClass = this.superClassSearcher.getSuperClassObjectType(objectType);
@@ -84,7 +86,7 @@ export class ObjectTypesInfoBuilder {
     );
   }
 
-  private createObjectTypesInfoConfigMap(objectType: ClassMetadata, typesInfo: TypesInfoStorage) {
+  private createObjectTypesInfoConfigMap(objectType: ClassMetadata) {
     return objectType.fields!.reduce<GraphQLFieldConfigMap<any, any>>((fieldsMap, field) => {
       const fieldResolverMetadata = getMetadataStorage().fieldResolvers.find(
         resolver =>
@@ -95,16 +97,15 @@ export class ObjectTypesInfoBuilder {
       );
       fieldsMap[field.schemaName] = {
         type: this.graphqlTypeBuilder.getGraphQLOutputType(
-          typesInfo,
           field.name,
           field.getType(),
           field.typeOptions,
         ),
         complexity: field.complexity,
-        args: this.handlerArgsGenerator.generateHandlerArgs(typesInfo, field.params!),
+        args: this.handlerArgsGenerator.generateHandlerArgs(field.params!),
         resolve: fieldResolverMetadata
-          ? createAdvancedFieldResolver(fieldResolverMetadata)
-          : createSimpleFieldResolver(field),
+          ? createAdvancedFieldResolver(this.buildContext, fieldResolverMetadata)
+          : createSimpleFieldResolver(this.buildContext, field),
         description: field.description,
         deprecationReason: field.deprecationReason,
       };

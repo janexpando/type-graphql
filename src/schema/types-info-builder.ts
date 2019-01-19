@@ -15,6 +15,7 @@ import { UnionTypesInfoBuilder } from "./type-builders/union-types-info-builder"
 import { InterfaceTypesInfoBuilder } from "./type-builders/interface-types-info-builder";
 import { SuperClassSearcher } from "./super-class-searcher";
 import { EnumTypesInfoBuilder } from "./type-builders/enum-types-info-builder";
+import { BuildContext } from "./build-context";
 
 export class TypesInfoBuilder {
   private inputTypesInfoBuilder: InputTypesInfoBuilder;
@@ -24,11 +25,11 @@ export class TypesInfoBuilder {
   private enumTypeInfoBuilder: EnumTypesInfoBuilder;
   private superClassSearcher: SuperClassSearcher;
 
-  private typeInfo: TypesInfoStorage = new TypesInfoStorage();
-
   constructor(
+    private typeInfo: TypesInfoStorage,
     private graphqlTypeBuilder: GraphqlTypeBuilder,
     private handlerArgsGenerator: HandlerArgsGenerator,
+    private buildContext: BuildContext,
   ) {
     this.superClassSearcher = new SuperClassSearcher(this.typeInfo);
     this.inputTypesInfoBuilder = new InputTypesInfoBuilder(
@@ -41,6 +42,7 @@ export class TypesInfoBuilder {
       this.superClassSearcher,
       this.graphqlTypeBuilder,
       this.handlerArgsGenerator,
+      this.buildContext,
     );
     this.unionTypeInfoBuilder = new UnionTypesInfoBuilder(this.typeInfo);
     this.interfaceTypesInfoBuilder = new InterfaceTypesInfoBuilder(

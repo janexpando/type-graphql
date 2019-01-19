@@ -1569,6 +1569,38 @@ describe("Resolvers", () => {
         expect(err.message).toContain("resolvers");
       }
     });
+
+    it("should use only resolvers provided", async () => {
+      @Resolver()
+      class SampleResolver {
+        @Query()
+        getUrl(): string {
+          return "SUCCESS";
+        }
+      }
+
+      @Resolver()
+      class OtherResolver {
+        @Query()
+        getUrl(): string {
+          return "FAIL";
+        }
+      }
+
+      const query = /* graphql */ `
+      query {
+        getUrl
+      }
+    `;
+
+      const schema = await buildSchema({
+        resolvers: [SampleResolver],
+      });
+
+      const result = await graphql(schema, query);
+      expect(result.errors).toBeFalsy();
+      expect(result.data && result.data.getUrl).toBe("SUCCESS");
+    });
   });
 
   describe("Inheritance", async () => {

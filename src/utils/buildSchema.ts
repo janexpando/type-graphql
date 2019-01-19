@@ -9,6 +9,7 @@ import {
   emitSchemaDefinitionFile,
   defaultPrintSchemaOptions,
 } from "./emitSchemaDefinitionFile";
+import { BuildContext } from "../schema/build-context";
 
 interface EmitSchemaFileOptions extends PrintSchemaOptions {
   path?: string;
@@ -26,7 +27,9 @@ export interface BuildSchemaOptions extends SchemaGeneratorOptions {
 }
 export async function buildSchema(options: BuildSchemaOptions): Promise<GraphQLSchema> {
   loadResolvers(options);
-  const schema = await SchemaGenerator.generateFromMetadata(options);
+  const context = BuildContext.create(options);
+  const generator = new SchemaGenerator(context);
+  const schema = await generator.generateFromMetadata();
   if (options.emitSchemaFile) {
     const { schemaFileName, printSchemaOptions } = getEmitSchemaDefinitionFileOptions(options);
     await emitSchemaDefinitionFile(schemaFileName, schema, printSchemaOptions);
@@ -36,7 +39,9 @@ export async function buildSchema(options: BuildSchemaOptions): Promise<GraphQLS
 
 export function buildSchemaSync(options: BuildSchemaOptions): GraphQLSchema {
   loadResolvers(options);
-  const schema = SchemaGenerator.generateFromMetadataSync(options);
+  const context = BuildContext.create(options);
+  const generator = new SchemaGenerator(context);
+  const schema = generator.generateFromMetadataSync();
   if (options.emitSchemaFile) {
     const { schemaFileName, printSchemaOptions } = getEmitSchemaDefinitionFileOptions(options);
     emitSchemaDefinitionFileSync(schemaFileName, schema, printSchemaOptions);

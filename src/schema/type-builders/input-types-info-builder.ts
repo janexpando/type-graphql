@@ -21,7 +21,7 @@ export class InputTypesInfoBuilder {
         name: inputType.name,
         description: inputType.description,
         fields: () => {
-          return this.createInputTypesInfoConfigMap(inputType, inputInstance, this.typeInfo);
+          return this.createInputTypesInfoConfigMap(inputType, inputInstance);
         },
       }),
     };
@@ -46,7 +46,6 @@ export class InputTypesInfoBuilder {
   private createInputTypesInfoConfigMap(
     inputType: ClassMetadata,
     inputInstance: any,
-    typeInfo: TypesInfoStorage,
   ): GraphQLInputFieldConfigMap {
     const fields = inputType.fields!.reduce<GraphQLInputFieldConfigMap>((fieldsMap, field) => {
       field.typeOptions.defaultValue = getDefaultValue(
@@ -59,7 +58,6 @@ export class InputTypesInfoBuilder {
       fieldsMap[field.schemaName] = {
         description: field.description,
         type: this.graphqlTypeBuilder.getGraphQLInputType(
-          typeInfo,
           field.name,
           field.getType(),
           field.typeOptions,

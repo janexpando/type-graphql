@@ -4,6 +4,8 @@ import { PubSubEngine, PubSub, PubSubOptions } from "graphql-subscriptions";
 
 import { AuthChecker, AuthMode } from "../interfaces";
 import { Middleware } from "../interfaces/Middleware";
+import { getMetadataStorage } from "../metadata/getMetadataStorage";
+import { SchemaGeneratorOptions } from "./schema-generator";
 
 export type DateScalarMode = "isoDate" | "timestamp";
 
@@ -26,50 +28,65 @@ export interface BuildContextOptions {
   globalMiddlewares?: Array<Middleware<any>>;
 }
 
-export abstract class BuildContext {
-  static dateScalarMode: DateScalarMode;
-  static scalarsMaps: ScalarsTypeMap[];
-  static validate: boolean | ValidatorOptions;
-  static authChecker?: AuthChecker<any, any>;
-  static authMode: AuthMode;
-  static pubSub: PubSubEngine;
-  static globalMiddlewares: Array<Middleware<any>>;
+export class BuildContext {
+  dateScalarMode: DateScalarMode;
+  scalarsMaps: ScalarsTypeMap[];
+  validate: boolean | ValidatorOptions;
+  authChecker?: AuthChecker<any, any>;
+  authMode: AuthMode;
+  pubSub: PubSubEngine;
+  globalMiddlewares: Array<Middleware<any>>;
 
   /**
    * Set static fields with current building context data
    */
-  static create(options: BuildContextOptions) {
+  static create(options: BuildContextOptions): BuildContext {
+    this.checkForErrors(options);
+    const context = new BuildContext();
     if (options.dateScalarMode !== undefined) {
-      this.dateScalarMode = options.dateScalarMode;
+      context.dateScalarMode = options.dateScalarMode;
     }
     if (options.scalarsMap !== undefined) {
-      this.scalarsMaps = options.scalarsMap;
+      context.scalarsMaps = options.scalarsMap;
     }
     if (options.validate !== undefined) {
-      this.validate = options.validate;
+      context.validate = options.validate;
     }
     if (options.authChecker !== undefined) {
-      this.authChecker = options.authChecker;
+      context.authChecker = options.authChecker;
     }
     if (options.authMode !== undefined) {
-      this.authMode = options.authMode;
+      context.authMode = options.authMode;
     }
     if (options.pubSub !== undefined) {
       if ("eventEmitter" in options.pubSub) {
-        this.pubSub = new PubSub(options.pubSub as PubSubOptions);
+        context.pubSub = new PubSub(options.pubSub as PubSubOptions);
       } else {
-        this.pubSub = options.pubSub as PubSubEngine;
+        context.pubSub = options.pubSub as PubSubEngine;
       }
     }
     if (options.globalMiddlewares) {
-      this.globalMiddlewares = options.globalMiddlewares;
+      context.globalMiddlewares = options.globalMiddlewares;
     }
+    return context;
+  }
+
+  static checkForErrors(options: SchemaGeneratorOptions) {
+    if (getMetadataStorage().authorizedFields.length !== 0 && options.authChecker === undefined) {
+      throw new Error(
+        "You need to provide `authChecker` function for `@Authorized` decorator usage!",
+      );
+    }
+  }
+
+  constructor() {
+    this.reset();
   }
 
   /**
    * Restore default settings
    */
-  static reset() {
+  reset() {
     this.dateScalarMode = "isoDate";
     this.scalarsMaps = [];
     this.validate = true;
@@ -79,6 +96,3 @@ export abstract class BuildContext {
     this.globalMiddlewares = [];
   }
 }
-
-// initialize fields
-BuildContext.reset();

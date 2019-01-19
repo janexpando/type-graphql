@@ -13,6 +13,7 @@ import { ResolverData, AuthChecker } from "../interfaces";
 import { Middleware } from "../interfaces/Middleware";
 
 export function createHandlerResolver(
+  buildContext: BuildContext,
   resolverMetadata: BaseResolverMetadata,
 ): GraphQLFieldResolver<any, any, any> {
   const {
@@ -21,7 +22,7 @@ export function createHandlerResolver(
     authMode,
     pubSub,
     globalMiddlewares,
-  } = BuildContext;
+  } = buildContext;
   const middlewares = globalMiddlewares.concat(resolverMetadata.middlewares!);
   applyAuthChecker(middlewares, authMode, authChecker, resolverMetadata.roles);
 
@@ -41,10 +42,11 @@ export function createHandlerResolver(
 }
 
 export function createAdvancedFieldResolver(
+  buildContext: BuildContext,
   fieldResolverMetadata: FieldResolverMetadata,
 ): GraphQLFieldResolver<any, any, any> {
   if (fieldResolverMetadata.kind === "external") {
-    return createHandlerResolver(fieldResolverMetadata);
+    return createHandlerResolver(buildContext, fieldResolverMetadata);
   }
 
   const targetType = fieldResolverMetadata.getObjectType!();
@@ -54,7 +56,7 @@ export function createAdvancedFieldResolver(
     authMode,
     pubSub,
     globalMiddlewares,
-  } = BuildContext;
+  } = buildContext;
   const middlewares = globalMiddlewares.concat(fieldResolverMetadata.middlewares!);
   applyAuthChecker(middlewares, authMode, authChecker, fieldResolverMetadata.roles);
 
@@ -79,9 +81,10 @@ export function createAdvancedFieldResolver(
 }
 
 export function createSimpleFieldResolver(
+  buildContext: BuildContext,
   fieldMetadata: FieldMetadata,
 ): GraphQLFieldResolver<any, any, any> {
-  const { authChecker, authMode, globalMiddlewares } = BuildContext;
+  const { authChecker, authMode, globalMiddlewares } = buildContext;
   const middlewares = globalMiddlewares.concat(fieldMetadata.middlewares!);
   applyAuthChecker(middlewares, authMode, authChecker, fieldMetadata.roles);
 

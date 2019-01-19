@@ -2,16 +2,18 @@ import { TypeOptions, TypeValue } from "../decorators/types";
 import { GraphQLInputType, GraphQLOutputType, GraphQLType } from "graphql";
 import { convertTypeIfScalar, wrapWithTypeOptions } from "../helpers/types";
 import { Storage, TypesInfoStorage } from "./types-info-storage";
+import { BuildContext } from "./build-context";
 
 export class GraphqlTypeBuilder {
+  constructor(private typeInfo: TypesInfoStorage, private buildContext: BuildContext) {}
+
   getGraphQLInputType(
-    typeInfo: TypesInfoStorage,
     typeOwnerName: string,
     type: TypeValue,
     typeOptions: TypeOptions = {},
   ): GraphQLInputType {
     return this.getGraphqlType(
-      [typeInfo.inputTypesInfo, typeInfo.enumTypesInfo],
+      [this.typeInfo.inputTypesInfo, this.typeInfo.enumTypesInfo],
       typeOwnerName,
       type,
       typeOptions,
@@ -19,17 +21,16 @@ export class GraphqlTypeBuilder {
   }
 
   getGraphQLOutputType(
-    typeInfo: TypesInfoStorage,
     typeOwnerName: string,
     type: TypeValue,
     typeOptions: TypeOptions = {},
   ): GraphQLOutputType {
     return this.getGraphqlType(
       [
-        typeInfo.objectTypesInfo,
-        typeInfo.interfaceTypesInfo,
-        typeInfo.enumTypesInfo,
-        typeInfo.unionTypesInfo,
+        this.typeInfo.objectTypesInfo,
+        this.typeInfo.interfaceTypesInfo,
+        this.typeInfo.enumTypesInfo,
+        this.typeInfo.unionTypesInfo,
       ],
       typeOwnerName,
       type,
@@ -44,7 +45,7 @@ export class GraphqlTypeBuilder {
     typeOptions: TypeOptions = {},
   ): GraphQLType {
     let gqlType: GraphQLType | undefined;
-    gqlType = convertTypeIfScalar(type);
+    gqlType = convertTypeIfScalar(this.buildContext, type);
 
     if (!gqlType) {
       for (const storage of storages) {

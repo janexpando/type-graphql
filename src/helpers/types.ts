@@ -14,11 +14,14 @@ import { GraphQLISODateTime } from "../scalars/isodate";
 import { BuildContext } from "../schema/build-context";
 import { WrongNullableListOptionError, ConflictingDefaultWithNullableError } from "../errors";
 
-export function convertTypeIfScalar(type: any): GraphQLScalarType | undefined {
+export function convertTypeIfScalar(
+  buildContext: BuildContext,
+  type: any,
+): GraphQLScalarType | undefined {
   if (type instanceof GraphQLScalarType) {
     return type;
   }
-  const scalarMap = BuildContext.scalarsMaps.find(it => it.type === type);
+  const scalarMap = buildContext.scalarsMaps.find(it => it.type === type);
   if (scalarMap) {
     return scalarMap.scalar;
   }
@@ -31,7 +34,7 @@ export function convertTypeIfScalar(type: any): GraphQLScalarType | undefined {
     case Number:
       return GraphQLFloat;
     case Date:
-      return BuildContext.dateScalarMode === "isoDate" ? GraphQLISODateTime : GraphQLTimestamp;
+      return buildContext.dateScalarMode === "isoDate" ? GraphQLISODateTime : GraphQLTimestamp;
     default:
       return undefined;
   }

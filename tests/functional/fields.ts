@@ -100,7 +100,7 @@ describe("Fields - schema", () => {
 
   it("it should register complexity info for field", async () => {
     const metadataStorage = getMetadataStorage();
-    const sampleObj = metadataStorage.objectTypes.find(it => it.name === "SampleObject")!;
+    const sampleObj = metadataStorage.objectTypes.findByName("SampleObject")!;
     const complexField = sampleObj.fields!.find(it => it.name === "complexField")!;
     expect(complexField.complexity).toBe(10);
   });

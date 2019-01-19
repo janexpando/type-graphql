@@ -7,13 +7,14 @@ import {
 import { Middleware } from "../interfaces/Middleware";
 import { isThrowing } from "../helpers/isThrowing";
 import { ReflectMetadataMissingError } from "../errors";
+import { BaseMetadataStorage, TargetSpecificStorage } from "./metadata-storage";
 
 export function mapSuperResolverHandlers<T extends BaseResolverMetadata>(
-  definitions: T[],
+  definitions: TargetSpecificStorage<T>,
   superResolver: Function,
   resolverMetadata: ResolverClassMetadata,
 ): T[] {
-  const superMetadata = definitions.filter(subscription => subscription.target === superResolver);
+  const superMetadata = definitions.findMany(superResolver);
 
   return superMetadata.map<T>(metadata => ({
     ...(metadata as any),
@@ -23,7 +24,7 @@ export function mapSuperResolverHandlers<T extends BaseResolverMetadata>(
 }
 
 export function mapSuperFieldResolverHandlers(
-  definitions: FieldResolverMetadata[],
+  definitions: TargetSpecificStorage<FieldResolverMetadata>,
   superResolver: Function,
   resolverMetadata: ResolverClassMetadata,
 ): FieldResolverMetadata[] {

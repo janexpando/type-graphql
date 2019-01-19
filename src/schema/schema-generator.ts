@@ -15,15 +15,21 @@ import {
   ParamMetadata,
   ClassMetadata,
   SubscriptionResolverMetadata,
+  BaseResolverMetadata,
 } from "../metadata/definitions";
 import { createHandlerResolver } from "../resolvers/create";
 import { BuildContext, BuildContextOptions } from "./build-context";
 import { GeneratingSchemaError, MissingSubscriptionTopicsError } from "../errors";
-import { ResolverFilterData, ResolverTopicData } from "../interfaces";
+import { ClassType, ResolverFilterData, ResolverTopicData } from "../interfaces";
 import { TypesInfoBuilder } from "./types-info-builder";
 import { TypesInfoStorage } from "./types-info-storage";
 import { getDefaultValue } from "./getDefaultValue";
 import { GraphqlTypeBuilder } from "./graphql-type-builder";
+import {
+  ResolverMetadataStorage,
+  SubscriptionResolverMetadataStorage,
+  TargetSpecificStorage,
+} from "../metadata/metadata-storage";
 
 // tslint:disable-next-line:no-empty-interface
 export interface SchemaGeneratorOptions extends BuildContextOptions {}
@@ -44,14 +50,10 @@ export class HandlerArgsGenerator {
           defaultValue: param.typeOptions.defaultValue,
         };
       } else if (param.kind === "args") {
-        const argumentType = getMetadataStorage().argumentTypes.find(
-          it => it.target === param.getType(),
-        )!;
+        const argumentType = getMetadataStorage().argumentTypes.find(param.getType() as ClassType)!;
         let superClass = Object.getPrototypeOf(argumentType.target);
         while (superClass.prototype !== undefined) {
-          const superArgumentType = getMetadataStorage().argumentTypes.find(
-            it => it.target === superClass,
-          )!;
+          const superArgumentType = getMetadataStorage().argumentTypes.find(superClass)!;
           this.mapArgFields(superArgumentType, args);
           superClass = Object.getPrototypeOf(superClass);
         }
@@ -92,12 +94,12 @@ export class HandlerFieldsGenerator {
   ) {}
 
   generateHandlerFields<T = any, U = any>(
-    handlers: ResolverMetadata[],
+    handlers: TargetSpecificStorage<ResolverMetadata>,
   ): GraphQLFieldConfigMap<T, U> {
-    return handlers.reduce<GraphQLFieldConfigMap<T, U>>((fields, handler) => {
-      // omit emitting abstract resolver fields
+    const fields: GraphQLFieldConfigMap<T, U> = {};
+    for (const handler of handlers) {
       if (handler.resolverClassMetadata && handler.resolverClassMetadata.isAbstract) {
-        return fields;
+        continue;
       }
       fields[handler.schemaName] = {
         type: this.graphqlTypeBuilder.getGraphQLOutputType(
@@ -111,8 +113,8 @@ export class HandlerFieldsGenerator {
         deprecationReason: handler.deprecationReason,
         complexity: handler.complexity,
       };
-      return fields;
-    }, {});
+    }
+    return fields;
   }
 }
 
@@ -174,7 +176,7 @@ export class SchemaGenerator {
   }
 
   private buildRootMutationType(): GraphQLObjectType | undefined {
-    if (getMetadataStorage().mutations.length === 0) {
+    if (getMetadataStorage().mutations.isEmpty) {
       return;
     }
     return new GraphQLObjectType({
@@ -184,7 +186,7 @@ export class SchemaGenerator {
   }
 
   private buildRootSubscriptionType(): GraphQLObjectType | undefined {
-    if (getMetadataStorage().subscriptions.length === 0) {
+    if (getMetadataStorage().subscriptions.isEmpty) {
       return;
     }
     return new GraphQLObjectType({
@@ -203,14 +205,14 @@ export class SchemaGenerator {
   }
 
   private generateSubscriptionsFields<T = any, U = any>(
-    subscriptionsHandlers: SubscriptionResolverMetadata[],
+    subscriptionsHandlers: SubscriptionResolverMetadataStorage,
   ): GraphQLFieldConfigMap<T, U> {
     const { pubSub } = this.buildContext;
     const basicFields = this.handlerFieldsGenerator.generateHandlerFields(subscriptionsHandlers);
-    return subscriptionsHandlers.reduce<GraphQLFieldConfigMap<T, U>>((fields, handler) => {
-      // omit emitting abstract resolver fields
+    const fields = basicFields;
+    for (const handler of subscriptionsHandlers) {
       if (handler.resolverClassMetadata && handler.resolverClassMetadata.isAbstract) {
-        return fields;
+        continue;
       }
 
       let pubSubIterator: ResolverFn;
@@ -235,7 +237,7 @@ export class SchemaGenerator {
             return handler.filter!(resolverFilterData);
           })
         : pubSubIterator;
-      return fields;
-    }, basicFields);
+    }
+    return fields;
   }
 }

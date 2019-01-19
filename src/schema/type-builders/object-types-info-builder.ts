@@ -88,12 +88,9 @@ export class ObjectTypesInfoBuilder {
 
   private createObjectTypesInfoConfigMap(objectType: ClassMetadata) {
     return objectType.fields!.reduce<GraphQLFieldConfigMap<any, any>>((fieldsMap, field) => {
-      const fieldResolverMetadata = getMetadataStorage().fieldResolvers.find(
-        resolver =>
-          resolver.getObjectType!() === objectType.target &&
-          resolver.methodName === field.name &&
-          (resolver.resolverClassMetadata === undefined ||
-            resolver.resolverClassMetadata.isAbstract === false),
+      const fieldResolverMetadata = getMetadataStorage().fieldResolvers.findField(
+        objectType,
+        field,
       );
       fieldsMap[field.schemaName] = {
         type: this.graphqlTypeBuilder.getGraphQLOutputType(

@@ -16,7 +16,7 @@ export function Authorized<RoleType = string>(
       throw new SymbolKeysNotSupportedError();
     }
 
-    getMetadataStorage().collectAuthorizedFieldMetadata({
+    getMetadataStorage().authorizedFields.collect({
       target: prototype.constructor,
       fieldName: propertyKey,
       roles,

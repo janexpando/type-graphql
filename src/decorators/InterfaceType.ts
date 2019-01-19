@@ -11,7 +11,7 @@ export function InterfaceType(
 ): ClassDecorator {
   const { name, options } = getNameDecoratorParams(nameOrOptions, maybeOptions);
   return target => {
-    getMetadataStorage().collectInterfaceMetadata({
+    getMetadataStorage().interfaceTypes.collect({
       name: name || target.name,
       target,
       description: options.description,

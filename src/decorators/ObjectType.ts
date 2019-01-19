@@ -19,7 +19,7 @@ export function ObjectType(
     options.implements && [].concat(options.implements as any);
 
   return target => {
-    getMetadataStorage().collectObjectMetadata({
+    getMetadataStorage().objectTypes.collect({
       name: name || target.name,
       target,
       description: options.description,

@@ -124,7 +124,7 @@ describe("Authorization", () => {
   describe("Reflection", () => {
     // helpers
     function findQuery(queryName: string) {
-      return getMetadataStorage().queries.find(it => it.methodName === queryName)!;
+      return getMetadataStorage().queries.findMethod(queryName)!;
     }
 
     it("should build schema without errors", async () => {
@@ -142,9 +142,7 @@ describe("Authorization", () => {
     });
 
     it("should register correct roles for object type fields", async () => {
-      const sampleObject = getMetadataStorage().objectTypes.find(
-        type => type.name === "SampleObject",
-      )!;
+      const sampleObject = getMetadataStorage().objectTypes.findByName("SampleObject")!;
       const normalField = sampleObject.fields!.find(field => field.name === "normalField")!;
       const authedField = sampleObject.fields!.find(field => field.name === "authedField")!;
       const adminField = sampleObject.fields!.find(field => field.name === "adminField")!;

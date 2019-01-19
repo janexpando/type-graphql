@@ -2,7 +2,7 @@ import { getMetadataStorage } from "../metadata/getMetadataStorage";
 
 export function ArgsType(): ClassDecorator {
   return target => {
-    getMetadataStorage().collectArgsMetadata({
+    getMetadataStorage().argumentTypes.collect({
       name: target.name,
       target,
     });

@@ -42,7 +42,7 @@ export function FieldResolver(
       // tslint:disable-next-line:no-empty
     }
 
-    getMetadataStorage().collectFieldResolverMetadata({
+    getMetadataStorage().fieldResolvers.collect({
       kind: "external",
       methodName: propertyKey,
       schemaName: options.name || propertyKey,

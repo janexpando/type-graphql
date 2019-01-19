@@ -46,7 +46,7 @@ export function Field(
     });
 
     if (isResolver) {
-      getMetadataStorage().collectFieldResolverMetadata({
+      getMetadataStorage().fieldResolvers.collect({
         kind: "internal",
         methodName: propertyKey,
         schemaName: options.name || propertyKey,

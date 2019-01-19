@@ -11,7 +11,7 @@ export function InputType(
 ): ClassDecorator {
   const { name, options } = getNameDecoratorParams(nameOrOptions, maybeOptions);
   return target => {
-    getMetadataStorage().collectInputMetadata({
+    getMetadataStorage().inputTypes.collect({
       name: name || target.name,
       target,
       description: options.description,

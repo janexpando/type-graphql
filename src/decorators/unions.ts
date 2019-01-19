@@ -16,11 +16,13 @@ export function createUnionType<T extends ClassType[]>({
   description,
 }: UnionTypeConfig<T>): UnionFromClasses<T>;
 export function createUnionType({ types, name, description }: UnionTypeConfig<ClassType[]>): any {
-  const unionMetadataSymbol = getMetadataStorage().collectUnionMetadata({
+  const unionSymbol = Symbol(name);
+  const definition = {
     types,
     name,
     description,
-  });
-
-  return unionMetadataSymbol;
+    symbol: unionSymbol,
+  };
+  getMetadataStorage().unions.collect(definition);
+  return unionSymbol;
 }

@@ -16,7 +16,7 @@ export function UseMiddleware(
       throw new SymbolKeysNotSupportedError();
     }
 
-    getMetadataStorage().collectMiddlewareMetadata({
+    getMetadataStorage().middlewares.collect({
       target: prototype.constructor,
       fieldName: propertyKey,
       middlewares,

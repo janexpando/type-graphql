@@ -30,7 +30,7 @@ export function Subscription(
     if (Array.isArray(options.topics) && options.topics.length === 0) {
       throw new MissingSubscriptionTopicsError(handler.target, handler.methodName);
     }
-    getMetadataStorage().collectSubscriptionHandlerMetadata({
+    getMetadataStorage().subscriptions.collect({
       ...handler,
       topics: subscriptionOptions.topics,
       filter: subscriptionOptions.filter,

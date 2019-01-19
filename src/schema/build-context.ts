@@ -29,17 +29,14 @@ export interface BuildContextOptions {
 }
 
 export class BuildContext {
-  dateScalarMode: DateScalarMode;
-  scalarsMaps: ScalarsTypeMap[];
-  validate: boolean | ValidatorOptions;
+  dateScalarMode: DateScalarMode = "isoDate";
+  scalarsMaps: ScalarsTypeMap[] = [];
+  validate: boolean | ValidatorOptions = true;
   authChecker?: AuthChecker<any, any>;
-  authMode: AuthMode;
-  pubSub: PubSubEngine;
-  globalMiddlewares: Array<Middleware<any>>;
+  authMode: AuthMode = "error";
+  pubSub: PubSubEngine = new PubSub();
+  globalMiddlewares: Array<Middleware<any>> = [];
 
-  /**
-   * Set static fields with current building context data
-   */
   static create(options: BuildContextOptions): BuildContext {
     this.checkForErrors(options);
     const context = new BuildContext();
@@ -72,27 +69,10 @@ export class BuildContext {
   }
 
   static checkForErrors(options: SchemaGeneratorOptions) {
-    if (getMetadataStorage().authorizedFields.length !== 0 && options.authChecker === undefined) {
+    if (!getMetadataStorage().authorizedFields.isEmpty && options.authChecker === undefined) {
       throw new Error(
         "You need to provide `authChecker` function for `@Authorized` decorator usage!",
       );
     }
-  }
-
-  constructor() {
-    this.reset();
-  }
-
-  /**
-   * Restore default settings
-   */
-  reset() {
-    this.dateScalarMode = "isoDate";
-    this.scalarsMaps = [];
-    this.validate = true;
-    this.authChecker = undefined;
-    this.authMode = "error";
-    this.pubSub = new PubSub();
-    this.globalMiddlewares = [];
   }
 }

@@ -64,45 +64,45 @@ export class TypesInfoBuilder {
 
   private getUnionTypesInfo(): UnionTypeInfoStorage {
     const storage = new UnionTypeInfoStorage();
-    getMetadataStorage().unions.forEach(unionMetadata => {
+    for (const unionMetadata of getMetadataStorage().unions) {
       storage.set(this.unionTypeInfoBuilder.createUnionTypeInfo(unionMetadata));
-    });
+    }
     return storage;
   }
 
   private createInterfaceTypeStorage(): InterfaceTypeInfoStorage {
     const storage = new InterfaceTypeInfoStorage();
-    getMetadataStorage().interfaceTypes.forEach(interfaceType => {
+    for (const interfaceType of getMetadataStorage().interfaceTypes) {
       const info = this.interfaceTypesInfoBuilder.createInterfaceTypeInfo(interfaceType);
       storage.set(info);
-    });
+    }
     return storage;
   }
 
   private createObjectTypeStorage(): ObjectTypeInfoStorage {
     const storage = new ObjectTypeInfoStorage();
-    getMetadataStorage().objectTypes.forEach(objectType => {
+    for (const objectType of getMetadataStorage().objectTypes) {
       const info = this.objectTypesInfoBuilder.createObjectTypeInfo(objectType);
       storage.set(info);
-    });
+    }
     return storage;
   }
 
   private createEnumTypeStorage(): EnumTypeInfoStorage {
     const storage = new EnumTypeInfoStorage();
-    getMetadataStorage().enums.forEach(enumMetadata => {
+    for (const enumMetadata of getMetadataStorage().enums) {
       const info = this.enumTypeInfoBuilder.create(enumMetadata);
       storage.set(info);
-    });
+    }
     return storage;
   }
 
   private createInputTypesStorage(): InputObjectTypeInfoStorage {
     const storage = new InputObjectTypeInfoStorage();
-    getMetadataStorage().inputTypes.forEach(inputType => {
+    for (const inputType of getMetadataStorage().inputTypes) {
       const info = this.inputTypesInfoBuilder.create(inputType);
       storage.set(info);
-    });
+    }
     return storage;
   }
 }

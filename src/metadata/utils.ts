@@ -6,8 +6,7 @@ import {
 } from "./definitions";
 import { Middleware } from "../interfaces/Middleware";
 import { isThrowing } from "../helpers/isThrowing";
-import { ReflectMetadataMissingError } from "../errors";
-import { BaseMetadataStorage, TargetSpecificStorage } from "./metadata-storage";
+import { TargetSpecificStorage } from "./storages/target-specific";
 
 export function mapSuperResolverHandlers<T extends BaseResolverMetadata>(
   definitions: TargetSpecificStorage<T>,
@@ -47,14 +46,4 @@ export function mapMiddlewareMetadataToArray(
       (middlewares, resultArray) => resultArray.concat(middlewares),
       [],
     );
-}
-
-export function ensureReflectMetadataExists() {
-  if (
-    typeof Reflect !== "object" ||
-    typeof Reflect.decorate !== "function" ||
-    typeof Reflect.metadata !== "function"
-  ) {
-    throw new ReflectMetadataMissingError();
-  }
 }

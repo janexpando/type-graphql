@@ -7,7 +7,7 @@ export function Ctx(propertyName?: string): ParameterDecorator {
       throw new SymbolKeysNotSupportedError();
     }
 
-    getMetadataStorage().collectHandlerParamMetadata({
+    getMetadataStorage().params.collect({
       kind: "context",
       target: prototype.constructor,
       methodName: propertyKey,

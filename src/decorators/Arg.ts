@@ -21,7 +21,7 @@ export function Arg(
       returnTypeFuncOrOptions,
       maybeOptions,
     );
-    getMetadataStorage().collectHandlerParamMetadata({
+    getMetadataStorage().params.collect({
       kind: "arg",
       name,
       description: options.description,

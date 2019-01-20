@@ -7,7 +7,7 @@ export function PubSub(triggerKey?: string): ParameterDecorator {
       throw new SymbolKeysNotSupportedError();
     }
 
-    getMetadataStorage().collectHandlerParamMetadata({
+    getMetadataStorage().params.collect({
       kind: "pubSub",
       target: prototype.constructor,
       methodName: propertyKey,

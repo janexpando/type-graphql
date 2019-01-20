@@ -32,7 +32,7 @@ export function Resolver(
             `No provided object type in '@Resolver' decorator for class '${target.name}!'`,
           );
         };
-    getMetadataStorage().collectResolverClassMetadata({
+    getMetadataStorage().resolverClasses.collect({
       target,
       getObjectType,
       isAbstract: options.isAbstract || false,

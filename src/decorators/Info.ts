@@ -7,7 +7,7 @@ export function Info(): ParameterDecorator {
       throw new SymbolKeysNotSupportedError();
     }
 
-    getMetadataStorage().collectHandlerParamMetadata({
+    getMetadataStorage().params.collect({
       kind: "info",
       target: prototype.constructor,
       methodName: propertyKey,

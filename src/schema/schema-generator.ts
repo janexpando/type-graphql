@@ -10,13 +10,7 @@ import {
 import { withFilter, ResolverFn } from "graphql-subscriptions";
 
 import { getMetadataStorage } from "../metadata/getMetadataStorage";
-import {
-  ResolverMetadata,
-  ParamMetadata,
-  ClassMetadata,
-  SubscriptionResolverMetadata,
-  BaseResolverMetadata,
-} from "../metadata/definitions";
+import { ResolverMetadata, ParamMetadata, ClassMetadata } from "../metadata/definitions";
 import { createHandlerResolver } from "../resolvers/create";
 import { BuildContext, BuildContextOptions } from "./build-context";
 import { GeneratingSchemaError, MissingSubscriptionTopicsError } from "../errors";
@@ -25,11 +19,8 @@ import { TypesInfoBuilder } from "./types-info-builder";
 import { TypesInfoStorage } from "./types-info-storage";
 import { getDefaultValue } from "./getDefaultValue";
 import { GraphqlTypeBuilder } from "./graphql-type-builder";
-import {
-  ResolverMetadataStorage,
-  SubscriptionResolverMetadataStorage,
-  TargetSpecificStorage,
-} from "../metadata/metadata-storage";
+import { TargetSpecificStorage } from "../metadata/storages/target-specific";
+import { SubscriptionResolverMetadataStorage } from "../metadata/storages/subscription-resolver";
 
 // tslint:disable-next-line:no-empty-interface
 export interface SchemaGeneratorOptions extends BuildContextOptions {}

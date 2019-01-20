@@ -34,7 +34,7 @@ export function Field(
       typeOptions: options,
     });
 
-    getMetadataStorage().collectClassFieldMetadata({
+    getMetadataStorage().fields.collect({
       name: propertyKey,
       schemaName: options.name || propertyKey,
       getType,

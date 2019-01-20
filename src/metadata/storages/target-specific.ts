@@ -1,8 +1,7 @@
-import { ClassType } from "../../interfaces";
 import { BaseMetadataStorage } from "./base";
 
 export class TargetSpecificStorage<T extends { target: Function }> extends BaseMetadataStorage<T> {
-  find(target: ClassType): T | undefined {
+  find(target: Function): T | undefined {
     return this.items.find(i => i.target === target);
   }
   findMany(target: Function): T[] {

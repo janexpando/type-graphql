@@ -15,7 +15,7 @@ export class BaserResolverMetadataBuilder {
   ) {}
 
   build(def: BaseResolverMetadata) {
-    const resolverClassMetadata = this.resolverClasses.find(def.target as ClassType)!;
+    const resolverClassMetadata = this.resolverClasses.find(def.target)!;
     def.resolverClassMetadata = resolverClassMetadata;
     def.params = this.params.getForField(def.target, def.methodName);
     def.roles = this.authorizedFields.findFieldRoles(def.target, def.methodName);

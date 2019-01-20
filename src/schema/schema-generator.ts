@@ -41,7 +41,7 @@ export class HandlerArgsGenerator {
           defaultValue: param.typeOptions.defaultValue,
         };
       } else if (param.kind === "args") {
-        const argumentType = getMetadataStorage().argumentTypes.find(param.getType() as ClassType)!;
+        const argumentType = getMetadataStorage().argumentTypes.find(param.getType() as Function)!;
         let superClass = Object.getPrototypeOf(argumentType.target);
         while (superClass.prototype !== undefined) {
           const superArgumentType = getMetadataStorage().argumentTypes.find(superClass)!;

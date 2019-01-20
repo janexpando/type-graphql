@@ -21,10 +21,10 @@ export class FieldResolverMetadataBuilder {
     def.roles = this.authorizedFields.findFieldRoles(def.target, def.methodName);
     def.getObjectType =
       def.kind === "external"
-        ? this.resolverClasses.find(def.target as ClassType)!.getObjectType
+        ? this.resolverClasses.find(def.target)!.getObjectType
         : () => def.target as ClassType;
     if (def.kind === "external") {
-      const objectTypeCls = this.resolverClasses.find(def.target as ClassType)!.getObjectType!();
+      const objectTypeCls = this.resolverClasses.find(def.target)!.getObjectType!();
       const objectType = this.objectTypes.find(objectTypeCls)!;
       const objectTypeField = objectType.fields!.find(
         fieldDef => fieldDef.name === def.methodName,

@@ -21,6 +21,7 @@ import { getDefaultValue } from "./getDefaultValue";
 import { GraphqlTypeBuilder } from "./graphql-type-builder";
 import { TargetSpecificStorage } from "../metadata/storages/target-specific";
 import { SubscriptionResolverMetadataStorage } from "../metadata/storages/subscription-resolver";
+import { ResolverMetadataStorage } from "../metadata/storages/resolver";
 
 // tslint:disable-next-line:no-empty-interface
 export interface SchemaGeneratorOptions extends BuildContextOptions {}
@@ -86,10 +87,17 @@ export class HandlerFieldsGenerator {
 
   generateHandlerFields<T = any, U = any>(
     handlers: TargetSpecificStorage<ResolverMetadata>,
+    resolverClasses: Function[],
   ): GraphQLFieldConfigMap<T, U> {
+    function isInResolvers(handler: ResolverMetadata) {
+      return resolverClasses.includes(handler.target);
+    }
     const fields: GraphQLFieldConfigMap<T, U> = {};
     for (const handler of handlers) {
-      if (handler.resolverClassMetadata && handler.resolverClassMetadata.isAbstract) {
+      if (
+        !isInResolvers(handler) ||
+        (handler.resolverClassMetadata && handler.resolverClassMetadata.isAbstract)
+      ) {
         continue;
       }
       fields[handler.schemaName] = {
@@ -127,8 +135,8 @@ export class SchemaGenerator {
     );
   }
 
-  async generateFromMetadata(): Promise<GraphQLSchema> {
-    const schema = this.generateFromMetadataSync();
+  async generateFromMetadata(resolvers: Function[]): Promise<GraphQLSchema> {
+    const schema = this.generateFromMetadataSync(resolvers);
     const { errors } = await graphql(schema, getIntrospectionQuery());
     if (errors) {
       throw new GeneratingSchemaError(errors);
@@ -136,14 +144,14 @@ export class SchemaGenerator {
     return schema;
   }
 
-  generateFromMetadataSync(): GraphQLSchema {
+  generateFromMetadataSync(resolvers: Function[]): GraphQLSchema {
     getMetadataStorage().build();
     this.buildTypesInfo();
 
     const schema = new GraphQLSchema({
-      query: this.buildRootQueryType(),
-      mutation: this.buildRootMutationType(),
-      subscription: this.buildRootSubscriptionType(),
+      query: this.buildRootQueryType(resolvers),
+      mutation: this.buildRootMutationType(resolvers),
+      subscription: this.buildRootSubscriptionType(resolvers),
       types: this.buildOtherTypes(),
     });
     return schema;
@@ -159,30 +167,36 @@ export class SchemaGenerator {
     builder.buildTypesInfo();
   }
 
-  private buildRootQueryType(): GraphQLObjectType {
+  private buildRootQueryType(resolvers: Function[]): GraphQLObjectType {
     return new GraphQLObjectType({
       name: "Query",
-      fields: this.handlerFieldsGenerator.generateHandlerFields(getMetadataStorage().queries),
+      fields: this.handlerFieldsGenerator.generateHandlerFields(
+        getMetadataStorage().queries,
+        resolvers,
+      ),
     });
   }
 
-  private buildRootMutationType(): GraphQLObjectType | undefined {
+  private buildRootMutationType(resolvers: Function[]): GraphQLObjectType | undefined {
     if (getMetadataStorage().mutations.isEmpty) {
       return;
     }
     return new GraphQLObjectType({
       name: "Mutation",
-      fields: this.handlerFieldsGenerator.generateHandlerFields(getMetadataStorage().mutations),
+      fields: this.handlerFieldsGenerator.generateHandlerFields(
+        getMetadataStorage().mutations,
+        resolvers,
+      ),
     });
   }
 
-  private buildRootSubscriptionType(): GraphQLObjectType | undefined {
+  private buildRootSubscriptionType(resolvers: Function[]): GraphQLObjectType | undefined {
     if (getMetadataStorage().subscriptions.isEmpty) {
       return;
     }
     return new GraphQLObjectType({
       name: "Subscription",
-      fields: this.generateSubscriptionsFields(getMetadataStorage().subscriptions),
+      fields: this.generateSubscriptionsFields(getMetadataStorage().subscriptions, resolvers),
     });
   }
 
@@ -197,12 +211,22 @@ export class SchemaGenerator {
 
   private generateSubscriptionsFields<T = any, U = any>(
     subscriptionsHandlers: SubscriptionResolverMetadataStorage,
+    resolvers: Function[],
   ): GraphQLFieldConfigMap<T, U> {
     const { pubSub } = this.buildContext;
-    const basicFields = this.handlerFieldsGenerator.generateHandlerFields(subscriptionsHandlers);
+    const basicFields = this.handlerFieldsGenerator.generateHandlerFields(
+      subscriptionsHandlers,
+      resolvers,
+    );
     const fields = basicFields;
+    function isInResolvers(handler: ResolverMetadata) {
+      return resolvers.includes(handler.target);
+    }
     for (const handler of subscriptionsHandlers) {
-      if (handler.resolverClassMetadata && handler.resolverClassMetadata.isAbstract) {
+      if (
+        !isInResolvers(handler) ||
+        (handler.resolverClassMetadata && handler.resolverClassMetadata.isAbstract)
+      ) {
         continue;
       }
 

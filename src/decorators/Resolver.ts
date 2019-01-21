@@ -1,6 +1,7 @@
 import { getMetadataStorage } from "../metadata/getMetadataStorage";
 import { ClassTypeResolver, ResolverClassOptions } from "./types";
 import { ClassType } from "../interfaces";
+import { ResolverMarker } from "../utils/resolver-marker";
 
 export function Resolver(): ClassDecorator;
 export function Resolver(options: ResolverClassOptions): ClassDecorator;
@@ -32,6 +33,8 @@ export function Resolver(
             `No provided object type in '@Resolver' decorator for class '${target.name}!'`,
           );
         };
+
+    ResolverMarker.mark(target);
     getMetadataStorage().resolverClasses.collect({
       target,
       getObjectType,

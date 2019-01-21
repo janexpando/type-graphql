@@ -26,10 +26,10 @@ export interface BuildSchemaOptions extends SchemaGeneratorOptions {
   emitSchemaFile?: string | boolean | EmitSchemaFileOptions;
 }
 export async function buildSchema(options: BuildSchemaOptions): Promise<GraphQLSchema> {
-  loadResolvers(options);
+  const resolvers = loadResolvers(options);
   const context = BuildContext.create(options);
   const generator = new SchemaGenerator(context);
-  const schema = await generator.generateFromMetadata();
+  const schema = await generator.generateFromMetadata(resolvers);
   if (options.emitSchemaFile) {
     const { schemaFileName, printSchemaOptions } = getEmitSchemaDefinitionFileOptions(options);
     await emitSchemaDefinitionFile(schemaFileName, schema, printSchemaOptions);
@@ -38,10 +38,10 @@ export async function buildSchema(options: BuildSchemaOptions): Promise<GraphQLS
 }
 
 export function buildSchemaSync(options: BuildSchemaOptions): GraphQLSchema {
-  loadResolvers(options);
+  const resolvers = loadResolvers(options);
   const context = BuildContext.create(options);
   const generator = new SchemaGenerator(context);
-  const schema = generator.generateFromMetadataSync();
+  const schema = generator.generateFromMetadataSync(resolvers);
   if (options.emitSchemaFile) {
     const { schemaFileName, printSchemaOptions } = getEmitSchemaDefinitionFileOptions(options);
     emitSchemaDefinitionFileSync(schemaFileName, schema, printSchemaOptions);
@@ -49,15 +49,19 @@ export function buildSchemaSync(options: BuildSchemaOptions): GraphQLSchema {
   return schema;
 }
 
-function loadResolvers(options: BuildSchemaOptions) {
+function loadResolvers(options: BuildSchemaOptions): Function[] {
+  const resolvers: Function[] = [];
   if (options.resolvers.length === 0) {
     throw new Error("Empty `resolvers` array property found in `buildSchema` options!");
   }
   options.resolvers.forEach(resolver => {
     if (typeof resolver === "string") {
-      loadResolversFromGlob(resolver);
+      resolvers.push(...loadResolversFromGlob(resolver));
+    } else if (resolver instanceof Function) {
+      resolvers.push(resolver);
     }
   });
+  return resolvers;
 }
 
 function getEmitSchemaDefinitionFileOptions(

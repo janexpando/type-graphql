@@ -1723,7 +1723,7 @@ describe("Resolvers", () => {
       overrideResolver = OverrideResolver;
 
       const schemaInfo = await getSchemaInfo({
-        resolvers: [childResolver],
+        resolvers: [childResolver, overrideResolver],
       });
       schemaIntrospection = schemaInfo.schemaIntrospection;
       queryType = schemaInfo.queryType;

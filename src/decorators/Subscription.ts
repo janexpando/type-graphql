@@ -8,6 +8,7 @@ import { getMetadataStorage } from "../metadata/getMetadataStorage";
 import { getHandlerInfo } from "../helpers/handlers";
 import { getTypeDecoratorParams } from "../helpers/decorators";
 import { MissingSubscriptionTopicsError } from "../errors";
+import { ResolverMarker } from "../utils/resolver-marker";
 
 export interface SubscriptionOptions extends AdvancedOptions {
   topics: string | string[] | SubscriptionTopicFunc;
@@ -25,6 +26,7 @@ export function Subscription(
 ): MethodDecorator {
   const { options, returnTypeFunc } = getTypeDecoratorParams(returnTypeFuncOrOptions, maybeOptions);
   return (prototype, methodName) => {
+    ResolverMarker.mark(prototype.constructor);
     const handler = getHandlerInfo(prototype, methodName, returnTypeFunc, options);
     const subscriptionOptions = options as SubscriptionOptions;
     if (Array.isArray(options.topics) && options.topics.length === 0) {
